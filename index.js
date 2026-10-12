@@ -1,94 +1,110 @@
-// index.js
-
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
 
-// 1. Basic HTTP server
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Hello from Node.js!");
-});
-
-// 2. Read a file
-function readFile(fileName) {
-  try {
-    const filePath = path.join(__dirname, fileName);
-    return fs.readFileSync(filePath, "utf8");
-  } catch (error) {
-    console.error("Could not read file:", error.message);
-    return null;
-  }
-}
-
-// 3. Write to a file
-function writeFile(fileName, content) {
-  try {
-    const filePath = path.join(__dirname, fileName);
-    fs.writeFileSync(filePath, content, "utf8");
-    console.log(`Wrote to ${fileName}`);
-  } catch (error) {
-    console.error("Could not write file:", error.message);
-  }
-}
-
-// 4. Append to a file
-function appendToFile(fileName, content) {
-  fs.appendFileSync(
-    path.join(__dirname, fileName),
-    content + "\n",
-    "utf8"
-  );
-}
-
-// 5. Get environment variables
 const port = process.env.PORT || 3000;
 const nodeEnv = process.env.NODE_ENV || "development";
 
-console.log("Environment:", nodeEnv);
-
-// 6. Simple logger with timestamps
 function log(message) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${message}`);
 }
 
-log("Application starting...");
-
-// 7. Generate a random ID
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
-}
-
-console.log("Random ID:", generateId());
-
-// 8. Check whether a file exists
-function fileExists(fileName) {
-  return fs.existsSync(path.join(__dirname, fileName));
-}
-
-console.log("index.js exists:", fileExists("index.js"));
-
-// 9. Get command-line arguments
-const args = process.argv.slice(2);
-
-console.log("Arguments:", args);
-
-// Example:
-// node index.js hello world
-// args => ["hello", "world"]
-
-// 10. Graceful shutdown
-process.on("SIGINT", () => {
-  log("Shutting down...");
-
-  server.close(() => {
-    log("Server stopped.");
-    process.exit(0);
+// API response helper
+function sendJson(res, data, statusCode = 200) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json",
   });
+
+  res.end(JSON.stringify(data));
+}
+
+const server = http.createServer((req, res) => {
+  // API endpoint
+  if (req.url === "/api/status") {
+    sendJson(res, {
+      message: "Hello from Node.js!",
+      environment: nodeEnv,
+      time: new Date().toISOString(),
+    });
+
+    return;
+  }
+
+  // Serve the frontend
+  if (req.url === "/" || req.url === "/index.html") {
+    const filePath = path.join(__dirname, "public", "index.html");
+
+    fs.readFile(filePath, "utf8", (error, data) => {
+      if (error) {
+        res.writeHead(500, {
+          "Content-Type": "text/plain",
+        });
+
+        res.end("Could not load frontend.");
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "text/html",
+      });
+
+      res.end(data);
+    });
+
+    return;
+  }
+
+  // Serve CSS
+  if (req.url === "/style.css") {
+    const filePath = path.join(__dirname, "public", "style.css");
+
+    fs.readFile(filePath, (error, data) => {
+      if (error) {
+        res.writeHead(404);
+        res.end("CSS not found");
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "text/css",
+      });
+
+      res.end(data);
+    });
+
+    return;
+  }
+
+  // Serve JavaScript
+  if (req.url === "/app.js") {
+    const filePath = path.join(__dirname, "public", "app.js");
+
+    fs.readFile(filePath, (error, data) => {
+      if (error) {
+        res.writeHead(404);
+        res.end("JavaScript not found");
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "application/javascript",
+      });
+
+      res.end(data);
+    });
+
+    return;
+  }
+
+  // Unknown route
+  res.writeHead(404, {
+    "Content-Type": "text/plain",
+  });
+
+  res.end("Not found");
 });
 
-// Start the server
 server.listen(port, () => {
   log(`Server running at http://localhost:${port}`);
 });
